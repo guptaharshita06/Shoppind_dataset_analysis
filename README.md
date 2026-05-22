@@ -1,4 +1,3 @@
-# Shoppind_dataset_analysis
 # Shopping Dataset Analysis using Pandas
 
 ## Objective
