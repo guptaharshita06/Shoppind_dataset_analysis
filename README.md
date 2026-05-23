@@ -20,5 +20,5 @@ Perform data exploration and cleaning using Python Pandas.
 
 ## Files Included
 - shopping_data_analysis.ipynb
-- cleaned_shirts_dataset.csv
-- shirts.csv
+- cleaned_combined_dataset.csv
+- combined_dataset.csv
