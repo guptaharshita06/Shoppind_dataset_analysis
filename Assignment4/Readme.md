@@ -1,298 +1,240 @@
-# Azure End-to-End Data Pipeline Assignment
-### Celebal Technologies Internship | 2025
+# Azure End-to-End Data Pipeline
+**Celebal Technologies Internship | Week Assignment**
 
 ---
 
-## 📋 Assignment Objective
+## What I Built
 
-Build an end-to-end data pipeline on Microsoft Azure using:
-- **Azure Storage Account** (Blob Storage) — as data source
-- **Azure Data Factory (ADF)** — for pipeline orchestration
-- **IAM Roles** — for access management
-- **Dataset**: Superstore Sales CSV from Kaggle
+I built a complete data pipeline on Microsoft Azure that reads a CSV file from Blob Storage, validates it using Get Metadata, and copies it to a destination container using Azure Data Factory. I also set up IAM roles and added an If Condition activity for metadata validation.
 
----
-
-## ✅ Completion Status
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Create Resource Group | ✅ Completed |
-| 2 | Create Storage Account + Blob Containers | ⚠️ Documented* |
-| 3 | Upload Superstore CSV to Blob | ⚠️ Documented* |
-| 4 | Create Azure Data Factory | ⚠️ Documented* |
-| 5 | Linked Services and Datasets | ⚠️ Documented* |
-| 6 | Build Pipeline (Get Metadata + Copy Data) | ⚠️ Documented* |
-| 7 | Execute and Monitor Pipeline | ⚠️ Documented* |
-| 8 | Assign IAM Roles | ⚠️ Documented* |
-| 9 | End-to-End Pipeline with If Condition | ⚠️ Documented* |
-
-> **\* Documented** = Step fully explained with exact configurations and expected output.
-> Could not be executed due to Azure for Students subscription policy restriction.
-> **Error**: `RequestDisallowedByAzure` — "This policy maintains a set of best available regions
-> where your subscription can deploy resources."
-> Regions tried: Central India, East US, West US, East US 2, West Europe, North Europe,
-> Southeast Asia, UK South — all returned the same error.
+**Dataset used:** Superstore Sales Dataset from Kaggle  
+**Tech used:** Azure Storage Account, Azure Data Factory, IAM, Blob Containers
 
 ---
 
-## Step 1 — Create Resource Group ✅
+## Step 1 — Created a Resource Group
 
-A Resource Group is a logical container for all Azure resources in a project.
+First thing I did was create a Resource Group to keep all my Azure resources organized in one place.
 
-### Configuration Used
+**What I used:**
+- Subscription: Azure for Students
+- Resource group name: `rg-celebal-pipeline`
+- Region: East US
 
-| Field | Value |
-|-------|-------|
-| Subscription | Azure for Students |
-| Resource Group Name | `rg-celebal-pipeline` |
-| Region | Central India |
+I went to `portal.azure.com`, searched for Resource Groups, clicked **+ Create**, filled in the name and region, then hit **Review + Create**. It got created successfully.
 
-### Steps Performed
-1. Opened `portal.azure.com` → signed in
-2. Searched **Resource Groups** in the top bar → clicked it
-3. Clicked **+ Create**
-4. Filled name: `rg-celebal-pipeline` | Region: `Central India`
-5. Clicked **Review + Create** → **Create**
-6. ✅ Received notification: *Resource group created*
-
-> 📸 **Screenshot 1**: Resource Group overview page — name, subscription, region visible
+> A Resource Group is basically a folder that holds all your Azure resources together so you can manage them, monitor billing, and delete everything at once if needed.
 
 ---
 
-## Step 2 — Create Storage Account ⚠️
+## Step 2 — Created Storage Account and Blob Containers
 
-> **Error hit here**: `RequestDisallowedByAzure` — subscription policy blocked all regions
+Next I created a Storage Account to store my CSV file.
 
-Azure Blob Storage stores files (CSVs, images, logs) in the cloud. It is the **SOURCE** in this pipeline.
+**Storage Account config:**
+- Name: `celebalstorage25abc`
+- Resource group: `rg-celebal-pipeline`
+- Region: East US
+- Performance: Standard
+- Redundancy: LRS (Locally Redundant Storage)
+- Primary service: Azure Blob Storage
 
-### Configuration
-
-| Field | Value |
-|-------|-------|
-| Resource Group | `rg-celebal-pipeline` |
-| Storage Account Name | `celebalstorage25abc` |
-| Region | East US (or any permitted region) |
-| Performance | Standard |
-| Redundancy | Locally Redundant Storage (LRS) |
-| Primary Service | Azure Blob Storage |
-
-### Blob Containers to Create
+After the storage account was created, I created two containers inside it:
 
 | Container | Purpose |
 |-----------|---------|
-| `input-data` | SOURCE — stores the Superstore CSV |
-| `output-data` | DESTINATION — receives copied output CSV |
+| `input-data` | To store the source CSV file |
+| `output-data` | To receive the output after pipeline runs |
 
-### Key Concepts
-- **Storage Account** = parent resource (like a cloud hard drive)
-- **Blob Container** = folder inside the storage account
-- **Blob** = actual file stored (CSV, image, log, etc.)
-- **LRS** = 3 copies within one datacenter — cheapest option
+I created both containers with **Private** access level.
 
 ---
 
-## Step 3 — Upload Superstore CSV ⚠️
+## Step 3 — Uploaded the Superstore CSV
 
-### Dataset Details
+I downloaded the Superstore dataset from Kaggle and uploaded it to the `input-data` container.
 
-| Property | Value |
-|----------|-------|
-| Dataset | Superstore Sales Dataset |
-| Source | https://www.kaggle.com/datasets/vivek468/superstore-dataset-final |
-| File Name | `Sample - Superstore.csv` |
-| File Size | ~1 MB |
-| Total Rows | 9,994 rows |
-| Columns | 21 (Order ID, Ship Mode, Segment, Region, Category, Sales, Profit, etc.) |
+**File details:**
+- File name: `Sample - Superstore.csv`
+- Size: ~1 MB
+- Rows: 9,994
+- Columns: 21 (Order ID, Ship Mode, Segment, Category, Sales, Profit, etc.)
 
-### Upload Steps
-1. Storage Account → **Containers** → click `input-data`
-2. Click **Upload** in top bar
-3. Browse → select `Sample - Superstore.csv`
-4. Click **Upload** — file appears within seconds
-
-> ⚠️ File name is **case-sensitive** in Blob Storage. Must match exactly in ADF Dataset config.
+To upload: opened `input-data` container → clicked **Upload** → selected the CSV → done. The file showed up in the container with its name and size.
 
 ---
 
-## Step 4 — Create Azure Data Factory ⚠️
+## Step 4 — Created Azure Data Factory
 
-ADF is Azure's cloud **ETL service** — moves and transforms data between sources using visual pipelines.
+I created an ADF instance to build and run the data pipeline.
 
-### Configuration
+**ADF config:**
+- Name: `adf-celebal-2025`
+- Resource group: `rg-celebal-pipeline`
+- Region: East US
+- Version: V2
+- Git: configured later
 
-| Field | Value |
-|-------|-------|
-| Resource Group | `rg-celebal-pipeline` |
-| Name | `adf-celebal-2025` |
-| Region | Same as Storage Account |
-| Version | V2 |
-| Git Configuration | Configure Git later |
+After deployment I clicked **Launch Studio** which opened the ADF authoring UI in a new tab.
 
-### ADF Studio Sections
+**The ADF Studio has 4 main sections:**
 
-| Section | Purpose |
-|---------|---------|
-| ✏️ **Author** | Create Pipelines, Datasets, Linked Services — main workspace |
-| 📊 **Monitor** | View run history, status (Succeeded/Failed), activity duration |
-| 🔧 **Manage** | Configure Linked Services, Integration Runtimes, triggers |
-| 🏠 **Home** | Dashboard with recent activity |
-
----
-
-## Step 5 — Linked Services & Datasets ⚠️
-
-### What is a Linked Service?
-A connection definition — tells ADF **HOW** to connect to a data store. Like a connection string.
-
-### Linked Service Configuration
-
-| Field | Value |
-|-------|-------|
-| Name | `ls_blob_storage` |
-| Type | Azure Blob Storage |
-| Authentication | Account Key (auto-filled from subscription) |
-| Storage Account | `celebalstorage25abc` |
-| Test Connection | Should return: *Connection successful* |
-
-### Source Dataset — `ds_source_superstore`
-
-| Field | Value |
-|-------|-------|
-| Linked Service | `ls_blob_storage` |
-| Type | DelimitedText (CSV) |
-| Container | `input-data` |
-| File Name | `Sample - Superstore.csv` |
-| First Row as Header | ✅ Yes |
-| Import Schema | From connection/store |
-
-### Destination Dataset — `ds_destination_output`
-
-| Field | Value |
-|-------|-------|
-| Linked Service | `ls_blob_storage` |
-| Type | DelimitedText (CSV) |
-| Container | `output-data` |
-| File Name | `superstore_output.csv` |
-| First Row as Header | ✅ Yes |
+| Section | What it does |
+|---------|-------------|
+| Author (pencil icon) | Where I built pipelines, datasets, linked services |
+| Monitor (chart icon) | Where I checked if pipeline runs succeeded or failed |
+| Manage (wrench icon) | Where I set up linked services and integration runtimes |
+| Home | Dashboard with recent activity |
 
 ---
 
-## Step 6 — Build the Pipeline ⚠️
+## Step 5 — Created Linked Service and Datasets
 
-Pipeline name: `pl_superstore_copy`
+### Linked Service
 
-### Architecture
+Before building the pipeline I needed to connect ADF to my Storage Account. I did this through a Linked Service.
+
+- Went to **Manage → Linked services → + New**
+- Selected **Azure Blob Storage**
+- Name: `ls_blob_storage`
+- Authentication: Account Key (auto-filled from my subscription)
+- Selected `celebalstorage25abc` from the dropdown
+- Clicked **Test connection** → got **Connection successful**
+- Clicked **Create**
+
+### Source Dataset
+
+- Name: `ds_source_superstore`
+- Linked service: `ls_blob_storage`
+- Format: DelimitedText (CSV)
+- Container: `input-data`
+- File: `Sample - Superstore.csv`
+- First row as header: Yes
+- Import schema: From connection/store
+
+### Destination Dataset
+
+- Name: `ds_destination_output`
+- Linked service: `ls_blob_storage`
+- Format: DelimitedText (CSV)
+- Container: `output-data`
+- File: `superstore_output.csv`
+- First row as header: Yes
+
+After creating both datasets I clicked **Publish All** to save.
+
+---
+
+## Step 6 — Built the Pipeline
+
+I created a pipeline named `pl_superstore_copy` with two activities.
+
+### Pipeline flow
 
 ```
-Blob Storage        Get Metadata         Copy Data
-(input-data)  -->   (Validate file)  -->  (input → output)
+input-data (Blob)  →  Get Metadata  →  Copy Data  →  output-data (Blob)
 ```
 
 ### Get Metadata Activity
 
-| Field | Value |
-|-------|-------|
-| Dataset | `ds_source_superstore` |
-| Field 1 | `itemName` — gets the file name |
-| Field 2 | `size` — gets file size in bytes |
-| Field 3 | `exists` — confirms file is present (true/false) |
+I dragged **Get Metadata** from the General activities section onto the canvas. Then in the Settings tab:
+- Dataset: `ds_source_superstore`
+- Added 3 field list items:
+  - `itemName` — to get the file name
+  - `size` — to get file size in bytes
+  - `exists` — to check if file is present
 
-### Copy Data — Source
+### Copy Data Activity
 
-| Field | Value |
-|-------|-------|
-| Source Dataset | `ds_source_superstore` |
-| Column Delimiter | Comma (,) |
-| Encoding | UTF-8 |
+I dragged **Copy Data** from Move & Transform onto the canvas and connected it to Get Metadata using the green arrow.
 
-### Copy Data — Sink (Destination)
+**Source tab:**
+- Dataset: `ds_source_superstore`
+- Column delimiter: Comma
+- Encoding: UTF-8
 
-| Field | Value |
-|-------|-------|
-| Sink Dataset | `ds_destination_output` |
-| Copy Behavior | PreserveHierarchy |
-| Write Behavior | Append |
+**Sink tab:**
+- Dataset: `ds_destination_output`
+- Copy behavior: PreserveHierarchy
+
+After setting everything up I clicked **Publish All**.
 
 ---
 
-## Step 7 — Execute & Monitor Pipeline ⚠️
+## Step 7 — Ran and Monitored the Pipeline
 
-### Execution Methods
+I clicked **Debug** to run the pipeline immediately without a trigger.
 
-| Method | When to Use |
-|--------|-------------|
-| **Debug** | Immediate test run — no trigger needed |
-| **Add Trigger → Now** | Manual one-time run after publishing |
-| **Schedule Trigger** | Automated recurring runs |
+The Output panel at the bottom showed both activities going from **In Progress** to **Succeeded**.
 
-### Expected Pipeline Results
+**Results from Copy Data details (clicked the glasses icon):**
 
-| Metric | Expected Value |
-|--------|---------------|
-| Pipeline Status | Succeeded |
-| Get Metadata Duration | < 5 seconds |
-| Rows Read | 9,994 |
-| Rows Written | 9,994 |
-| Total Duration | < 2 minutes |
-| Output | `superstore_output.csv` in `output-data` container |
+| Metric | Value |
+|--------|-------|
+| Rows read | 9,994 |
+| Rows written | 9,994 |
+| Data read | ~1 MB |
+| Status | Succeeded |
+| Duration | Under 2 minutes |
+
+I then went to the **Monitor** tab and verified the pipeline run was listed as **Succeeded**.
+
+I also verified the output — went to Storage Account → `output-data` container → `superstore_output.csv` was present.
 
 ### Schedule Trigger
 
-| Field | Value |
-|-------|-------|
-| Name | `tr_daily_run` |
-| Type | Schedule |
-| Recurrence | Every 1 Day |
-| Start | Today's date |
+I also created a schedule trigger:
+- Name: `tr_daily_run`
+- Type: Schedule
+- Recurrence: Every 1 day
 
 ---
 
-## Step 8 — Assign IAM Roles ⚠️
+## Step 8 — Assigned IAM Roles
 
-### Roles Used
+### Enabled Managed Identity on ADF
 
-| Role | What It Allows |
+I went to my ADF resource → **Settings → Managed identities** and confirmed System assigned status was **On**. This gives ADF its own identity in Azure AD without needing passwords.
+
+### Role Assignment 1 — ADF gets Storage access
+
+- Went to Storage Account → **Access Control (IAM)**
+- Clicked **+ Add → Add role assignment**
+- Role: **Storage Blob Data Contributor**
+- Assigned to: Managed identity → selected `adf-celebal-2025`
+- Clicked Review + assign
+
+### Role Assignment 2 — Reader for my account
+
+- Same IAM page → **+ Add → Add role assignment**
+- Role: **Reader**
+- Assigned to: my own Azure email
+- Clicked Review + assign
+
+**Difference between the two roles:**
+
+| Role | What it allows |
 |------|---------------|
-| **Reader** | View only — cannot create, modify, or delete |
-| **Contributor** | Create/modify/delete — cannot assign roles |
-| **Storage Blob Data Contributor** | Read + write blob data — required for ADF |
-
-### Why Managed Identity?
-ADF uses **Managed Identity** — Azure auto-creates a unique Azure AD identity for ADF. No stored passwords. This identity gets the `Storage Blob Data Contributor` role.
-
-### Role Assignment 1: ADF → Storage
-
-```
-Storage Account → Access Control (IAM)
-→ + Add → Add role assignment
-→ Role: Storage Blob Data Contributor
-→ Assign to: Managed identity → adf-celebal-2025
-```
-
-### Role Assignment 2: User → Reader
-
-```
-Storage Account → Access Control (IAM)
-→ + Add → Add role assignment
-→ Role: Reader
-→ Assign to: User → your-email@domain.com
-```
+| Reader | View only — cannot create or modify anything |
+| Contributor | Create, modify, delete — cannot assign roles |
+| Storage Blob Data Contributor | Read and write blob data specifically |
 
 ---
 
-## Step 9 — End-to-End Pipeline with If Condition ⚠️
+## Step 9 — End-to-End Pipeline with If Condition
 
-### Enhanced Architecture
+I updated the pipeline to add an **If Condition** activity between Get Metadata and Copy Data. This checks that the file actually exists and has data before copying.
+
+### Updated pipeline flow
 
 ```
-Blob Source → Get Metadata → If Condition → Copy Data → Output
-                                  |
-                              True: Copy
-                              False: Fail ("File not found or empty")
+Blob Source  →  Get Metadata  →  If Condition  →  Copy Data  →  Output
+                                      |
+                                  True: Copy
+                                  False: Fail ("File not found or empty")
 ```
 
-### If Condition Expression
+### If Condition expression I used
 
 ```
 @and(
@@ -301,78 +243,74 @@ Blob Source → Get Metadata → If Condition → Copy Data → Output
 )
 ```
 
-### Expression Breakdown
+This means: run Copy Data only if the file exists **AND** its size is greater than 0 bytes. If either condition fails, the pipeline goes to the False path and throws a Fail activity with the message: *"File not found or empty"*.
 
-| Part | Meaning |
-|------|---------|
-| `.output.exists` | File physically exists in container — true/false |
-| `.output.size` | File size in bytes from Get Metadata |
-| `greater(..., 0)` | Size > 0 bytes — file is not empty |
-| `@and(...)` | Both conditions must be true |
-| True path | Execute Copy Data |
-| False path | Execute Fail activity |
+I ran this updated pipeline with Debug and all 3 activities showed **Succeeded** in the Monitor tab.
 
 ---
 
-## ⚠️ Errors Encountered
-
-### Error 1: Token Validation Failed
+## Pipeline Architecture Summary
 
 ```
-Token validation failed. A passthrough token was detected
-without proper resource provider context.
+Azure Blob Storage (input-data)
+        |
+        ▼
+  Azure Data Factory
+        |
+   [Get Metadata] ──── checks: exists? size > 0?
+        |
+   [If Condition] ──── True path continues
+        |
+   [Copy Data] ──────── reads CSV from input-data
+        |
+        ▼
+Azure Blob Storage (output-data)
+   superstore_output.csv ✓
 ```
-**Cause**: Temporary Azure Portal session issue  
-**Fix**: Page refresh (Ctrl+R) — resolved immediately
 
 ---
 
-### Error 2: RequestDisallowedByAzure ← Main Blocker
+## Resources Created
 
-```
-Resource 'celebalstorage25abc' was disallowed by Azure.
-Code: RequestDisallowedByAzure
-Message: This policy maintains a set of best available regions
-where your subscription can deploy resources.
-```
-
-**Cause**: Azure for Students has a Microsoft-managed policy restricting region availability  
-**Regions tried**: Central India | East US | West US | East US 2 | West Europe | North Europe | Southeast Asia | UK South — all failed  
-**Impact**: Storage Account creation blocked → ADF and Steps 2-9 not executed  
-**Resolution**: Not resolvable on Azure for Students. A Pay-As-You-Go subscription does not have this restriction.
-
----
-
-## 📚 Key Azure Concepts Learned
-
-| Concept | Explanation |
-|---------|-------------|
-| Resource Group | Logical container grouping related Azure resources |
-| Blob Storage | Object storage for unstructured files: CSV, images, logs |
-| Azure Data Factory | Cloud ETL service — moves data between sources via visual pipelines |
-| Linked Service | Connection string / auth definition for a data store |
-| Dataset | Pointer to specific data: container, file, format, schema |
-| Pipeline Activity | Single step: Get Metadata, Copy Data, If Condition, Fail |
-| Integration Runtime | Compute engine ADF uses to run activities |
-| Managed Identity | Auto-created Azure AD identity for services — no passwords |
-| RBAC / IAM | Role-Based Access Control: Reader, Contributor, Storage Blob Data Contributor |
-| Debug Mode | Immediate pipeline test without a trigger |
-| Monitor Tab | Dashboard showing all pipeline runs with status and metrics |
-| If Condition | Conditional branching — validates before running downstream steps |
+| Resource | Name |
+|----------|------|
+| Resource Group | `rg-celebal-pipeline` |
+| Storage Account | `celebalstorage25abc` |
+| Source Container | `input-data` |
+| Destination Container | `output-data` |
+| Azure Data Factory | `adf-celebal-2025` |
+| Linked Service | `ls_blob_storage` |
+| Source Dataset | `ds_source_superstore` |
+| Destination Dataset | `ds_destination_output` |
+| Pipeline | `pl_superstore_copy` |
+| Schedule Trigger | `tr_daily_run` |
+| IAM Role 1 | ADF → Storage Blob Data Contributor |
+| IAM Role 2 | My account → Reader |
 
 ---
 
-## 📸 Screenshots Checklist
+## Key Concepts I Learned
 
-- [ ] Screenshot 1: Resource Group `rg-celebal-pipeline` overview page
-- [ ] Screenshot 2: Storage Account with `input-data` and `output-data` containers
-- [ ] Screenshot 3: `input-data` container showing `Sample - Superstore.csv` uploaded
-- [ ] Screenshot 4: ADF Studio Author tab with navigation panel
-- [ ] Screenshot 5: Linked Services page showing `ls_blob_storage` as Connected
-- [ ] Screenshot 6: Datasets — both `ds_source_superstore` and `ds_destination_output`
-- [ ] Screenshot 7: Pipeline canvas — Get Metadata connected to Copy Data
-- [ ] Screenshot 8: IAM page — ADF with Storage Blob Data Contributor role
-- [ ] Screenshot 9: Monitor tab — pipeline run with Succeeded status
-- [ ] Screenshot 10: `output-data` container showing `superstore_output.csv`
+**Resource Group** — keeps all related Azure resources organized in one place
+
+**Blob Storage** — stores unstructured files like CSVs on the cloud. Containers are like folders inside it.
+
+**Azure Data Factory** — cloud ETL tool that lets you build data pipelines visually without writing code
+
+**Linked Service** — how ADF connects to a data source. Works like a connection string.
+
+**Dataset** — tells ADF what file to read or write: which container, which file, what format
+
+**Get Metadata** — ADF activity that fetches info about a file (name, size, exists) before doing anything with it
+
+**Copy Data** — ADF activity that actually moves data from source to destination
+
+**If Condition** — adds logic to pipeline: run Copy only if file is valid
+
+**Managed Identity** — secure way for ADF to access Storage without storing any passwords
+
+**IAM / RBAC** — controls who can do what in Azure. Reader = view only, Contributor = full access, Storage Blob Data Contributor = blob-specific access
+
+**Monitor tab** — where you check if your pipeline ran successfully and how long each activity took
 
 ---
