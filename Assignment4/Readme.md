@@ -5,7 +5,7 @@
 
 ## What I Built
 
-I built a complete data pipeline on Microsoft Azure that reads a CSV file from Blob Storage, validates it using Get Metadata, and copies it to a destination container using Azure Data Factory. I also set up IAM roles and added an If Condition activity for metadata validation.
+I built a data pipeline on Microsoft Azure that reads a CSV file from Blob Storage and copies it to a destination container using Azure Data Factory. I set up all the required resources, linked services, datasets, and the pipeline with Get Metadata and Copy Data activities.
 
 **Dataset used:** Superstore Sales Dataset from Kaggle  
 **Tech used:** Azure Storage Account, Azure Data Factory, IAM, Blob Containers
@@ -14,22 +14,22 @@ I built a complete data pipeline on Microsoft Azure that reads a CSV file from B
 
 ## Step 1 — Created a Resource Group
 
-First thing I did was create a Resource Group to keep all my Azure resources organized in one place.
+First I created a Resource Group to keep all my Azure resources organized in one place.
 
-**What I used:**
+**Configuration:**
 - Subscription: Azure for Students
 - Resource group name: `rg-celebal-pipeline`
 - Region: East US
 
 I went to `portal.azure.com`, searched for Resource Groups, clicked **+ Create**, filled in the name and region, then hit **Review + Create**. It got created successfully.
 
-> A Resource Group is basically a folder that holds all your Azure resources together so you can manage them, monitor billing, and delete everything at once if needed.
+> A Resource Group is basically a folder that holds all your Azure resources together so you can manage billing and delete everything at once if needed.
 
 ---
 
 ## Step 2 — Created Storage Account and Blob Containers
 
-Next I created a Storage Account to store my CSV file.
+I created a Storage Account to store my CSV file.
 
 **Storage Account config:**
 - Name: `celebalstorage25abc`
@@ -46,7 +46,7 @@ After the storage account was created, I created two containers inside it:
 | `input-data` | To store the source CSV file |
 | `output-data` | To receive the output after pipeline runs |
 
-I created both containers with **Private** access level.
+Both containers were created with **Private** access level.
 
 ---
 
@@ -82,7 +82,7 @@ After deployment I clicked **Launch Studio** which opened the ADF authoring UI i
 | Section | What it does |
 |---------|-------------|
 | Author (pencil icon) | Where I built pipelines, datasets, linked services |
-| Monitor (chart icon) | Where I checked if pipeline runs succeeded or failed |
+| Monitor (chart icon) | Where I checked pipeline run status |
 | Manage (wrench icon) | Where I set up linked services and integration runtimes |
 | Home | Dashboard with recent activity |
 
@@ -92,7 +92,7 @@ After deployment I clicked **Launch Studio** which opened the ADF authoring UI i
 
 ### Linked Service
 
-Before building the pipeline I needed to connect ADF to my Storage Account. I did this through a Linked Service.
+I connected ADF to my Storage Account through a Linked Service.
 
 - Went to **Manage → Linked services → + New**
 - Selected **Azure Blob Storage**
@@ -137,7 +137,7 @@ input-data (Blob)  →  Get Metadata  →  Copy Data  →  output-data (Blob)
 
 ### Get Metadata Activity
 
-I dragged **Get Metadata** from the General activities section onto the canvas. Then in the Settings tab:
+I dragged **Get Metadata** from the General activities section onto the canvas. In the Settings tab I configured:
 - Dataset: `ds_source_superstore`
 - Added 3 field list items:
   - `itemName` — to get the file name
@@ -157,85 +157,60 @@ I dragged **Copy Data** from Move & Transform onto the canvas and connected it t
 - Dataset: `ds_destination_output`
 - Copy behavior: PreserveHierarchy
 
-After setting everything up I clicked **Publish All**.
+After setting up both activities I clicked **Publish All**.
 
 ---
 
-## Step 7 — Ran and Monitored the Pipeline
+## Step 7 — Ran the Pipeline (Error Encountered)
 
-I clicked **Debug** to run the pipeline immediately without a trigger.
+I clicked **Debug** to run the pipeline.
 
-The Output panel at the bottom showed both activities going from **In Progress** to **Succeeded**.
+The **Get Metadata** activity ran successfully and returned the file info. However, the **Copy Data** activity failed — the data did not get copied to the `output-data` container. Since the Copy Data activity failed, the pipeline run did not complete successfully and I was not able to publish the final output.
 
-**Results from Copy Data details (clicked the glasses icon):**
+**What happened:**
+- Get Metadata → ✅ Succeeded
+- Copy Data → ❌ Failed
+- Pipeline output → not published
 
-| Metric | Value |
-|--------|-------|
-| Rows read | 9,994 |
-| Rows written | 9,994 |
-| Data read | ~1 MB |
-| Status | Succeeded |
-| Duration | Under 2 minutes |
+**Possible reasons for the Copy Data failure:**
+- ADF did not have the required permissions to write to the `output-data` container (IAM role not yet assigned at this point)
+- The sink dataset configuration may have had an issue
+- The destination container may not have been accessible to ADF without the Storage Blob Data Contributor role
 
-I then went to the **Monitor** tab and verified the pipeline run was listed as **Succeeded**.
-
-I also verified the output — went to Storage Account → `output-data` container → `superstore_output.csv` was present.
-
-### Schedule Trigger
-
-I also created a schedule trigger:
-- Name: `tr_daily_run`
-- Type: Schedule
-- Recurrence: Every 1 day
+> This error made me realize that IAM roles need to be set up before running the pipeline, not after. ADF needs the **Storage Blob Data Contributor** role on the Storage Account to be able to read from source and write to destination.
 
 ---
 
-## Step 8 — Assigned IAM Roles
+## Steps 8 & 9 — IAM Roles and If Condition (Planned)
 
-### Enabled Managed Identity on ADF
+Even though I ran into the error in Step 7, I understood what needed to be done for the remaining steps.
 
-I went to my ADF resource → **Settings → Managed identities** and confirmed System assigned status was **On**. This gives ADF its own identity in Azure AD without needing passwords.
+### IAM Roles (Step 8)
 
-### Role Assignment 1 — ADF gets Storage access
+To fix the Copy Data error, I would need to:
 
-- Went to Storage Account → **Access Control (IAM)**
-- Clicked **+ Add → Add role assignment**
-- Role: **Storage Blob Data Contributor**
-- Assigned to: Managed identity → selected `adf-celebal-2025`
-- Clicked Review + assign
+1. Go to Storage Account → **Access Control (IAM)**
+2. Click **+ Add → Add role assignment**
+3. Assign **Storage Blob Data Contributor** to ADF's Managed Identity (`adf-celebal-2025`)
+4. Also assign **Reader** role to my own Azure account
 
-### Role Assignment 2 — Reader for my account
+| Role | Assigned To | Purpose |
+|------|-------------|---------|
+| Storage Blob Data Contributor | `adf-celebal-2025` (Managed Identity) | Allows ADF to read and write blob data |
+| Reader | My Azure account | View-only access to the storage resource |
 
-- Same IAM page → **+ Add → Add role assignment**
-- Role: **Reader**
-- Assigned to: my own Azure email
-- Clicked Review + assign
+### End-to-End Pipeline with If Condition (Step 9)
 
-**Difference between the two roles:**
-
-| Role | What it allows |
-|------|---------------|
-| Reader | View only — cannot create or modify anything |
-| Contributor | Create, modify, delete — cannot assign roles |
-| Storage Blob Data Contributor | Read and write blob data specifically |
-
----
-
-## Step 9 — End-to-End Pipeline with If Condition
-
-I updated the pipeline to add an **If Condition** activity between Get Metadata and Copy Data. This checks that the file actually exists and has data before copying.
-
-### Updated pipeline flow
+The advanced version of the pipeline would add an **If Condition** activity between Get Metadata and Copy Data to validate the file before copying:
 
 ```
-Blob Source  →  Get Metadata  →  If Condition  →  Copy Data  →  Output
-                                      |
-                                  True: Copy
-                                  False: Fail ("File not found or empty")
+Blob Source → Get Metadata → If Condition → Copy Data → Output
+                                  |
+                              True: Copy
+                              False: Fail ("File not found or empty")
 ```
 
-### If Condition expression I used
-
+**Expression:**
 ```
 @and(
     activity('Get Metadata1').output.exists,
@@ -243,30 +218,7 @@ Blob Source  →  Get Metadata  →  If Condition  →  Copy Data  →  Output
 )
 ```
 
-This means: run Copy Data only if the file exists **AND** its size is greater than 0 bytes. If either condition fails, the pipeline goes to the False path and throws a Fail activity with the message: *"File not found or empty"*.
-
-I ran this updated pipeline with Debug and all 3 activities showed **Succeeded** in the Monitor tab.
-
----
-
-## Pipeline Architecture Summary
-
-```
-Azure Blob Storage (input-data)
-        |
-        ▼
-  Azure Data Factory
-        |
-   [Get Metadata] ──── checks: exists? size > 0?
-        |
-   [If Condition] ──── True path continues
-        |
-   [Copy Data] ──────── reads CSV from input-data
-        |
-        ▼
-Azure Blob Storage (output-data)
-   superstore_output.csv ✓
-```
+This runs Copy Data only if the file exists AND has content (size > 0 bytes).
 
 ---
 
@@ -283,9 +235,6 @@ Azure Blob Storage (output-data)
 | Source Dataset | `ds_source_superstore` |
 | Destination Dataset | `ds_destination_output` |
 | Pipeline | `pl_superstore_copy` |
-| Schedule Trigger | `tr_daily_run` |
-| IAM Role 1 | ADF → Storage Blob Data Contributor |
-| IAM Role 2 | My account → Reader |
 
 ---
 
@@ -295,22 +244,31 @@ Azure Blob Storage (output-data)
 
 **Blob Storage** — stores unstructured files like CSVs on the cloud. Containers are like folders inside it.
 
-**Azure Data Factory** — cloud ETL tool that lets you build data pipelines visually without writing code
+**Azure Data Factory** — cloud ETL tool that lets you build data pipelines visually
 
-**Linked Service** — how ADF connects to a data source. Works like a connection string.
+**Linked Service** — how ADF connects to a data source, works like a connection string
 
-**Dataset** — tells ADF what file to read or write: which container, which file, what format
+**Dataset** — tells ADF what file to read or write: which container, file name, format
 
 **Get Metadata** — ADF activity that fetches info about a file (name, size, exists) before doing anything with it
 
-**Copy Data** — ADF activity that actually moves data from source to destination
+**Copy Data** — ADF activity that moves data from source to destination
 
-**If Condition** — adds logic to pipeline: run Copy only if file is valid
+**If Condition** — adds conditional logic to pipeline: run Copy only if file is valid
 
 **Managed Identity** — secure way for ADF to access Storage without storing any passwords
 
-**IAM / RBAC** — controls who can do what in Azure. Reader = view only, Contributor = full access, Storage Blob Data Contributor = blob-specific access
+**IAM / RBAC** — controls who can do what in Azure. ADF needs Storage Blob Data Contributor role to access blob data
 
-**Monitor tab** — where you check if your pipeline ran successfully and how long each activity took
+**Monitor tab** — where you check if pipeline ran successfully and how long each activity took
 
+---
+
+## What I Would Do Differently
+
+If I were to redo this, I would assign the IAM roles (Storage Blob Data Contributor to ADF's Managed Identity) **before** running the pipeline for the first time. The Copy Data activity failed most likely because ADF did not have write permission on the `output-data` container at that point.
+
+---
+
+*Celebal Technologies Internship 2025*
 ---
